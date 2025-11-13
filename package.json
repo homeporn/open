@@ -1,0 +1,13 @@
+{
+  "name": "poker-tracker",
+  "version": "1.0.0",
+  "description": "Poker Tracker - веб-приложение для учета игроков в покер",
+  "scripts": {
+    "build": "echo 'Python project - dependencies installed by Netlify Python runtime'"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {}
+}
+

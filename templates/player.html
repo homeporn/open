@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}{{ stats.name }} - Статистика{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h2>Статистика игрока: {{ stats.name }}</h2>
+    <div class="header-actions">
+        <button class="btn btn-success" onclick="showTransactionModal({{ player_id }}, '{{ stats.name }}')">Добавить транзакцию</button>
+        <button class="btn btn-warning" onclick="showRebuyModal({{ player_id }}, '{{ stats.name }}')">Добавить докуп</button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Назад</a>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card large">
+        <h3>Текущий баланс</h3>
+        <p class="stat-number {% if stats.balance >= 0 %}positive{% else %}negative{% endif %}">
+            {{ "%.2f"|format(stats.balance) }}
+        </p>
+    </div>
+    <div class="stat-card">
+        <h3>Общий бай-ин</h3>
+        <p class="stat-number">{{ "%.2f"|format(stats.total_buyin) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Общие выигрыши</h3>
+        <p class="stat-number positive">{{ "%.2f"|format(stats.total_wins) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Общие проигрыши</h3>
+        <p class="stat-number negative">{{ "%.2f"|format(stats.total_losses) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Общие докупы</h3>
+        <p class="stat-number">{{ "%.2f"|format(stats.total_rebuys) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Количество докупов</h3>
+        <p class="stat-number">{{ stats.rebuy_count }}</p>
+    </div>
+</div>
+
+<div class="chart-section">
+    <h3>Визуализация статистики</h3>
+    <canvas id="statsChart"></canvas>
+</div>
+
+<div class="players-section">
+    <h3>История транзакций</h3>
+    <div id="transactions-list" class="transactions-list">
+        <p style="text-align: center; color: #718096;">Загрузка...</p>
+    </div>
+</div>
+
+<div class="players-section">
+    <h3>История докупов</h3>
+    <div id="rebuys-list" class="transactions-list">
+        <p style="text-align: center; color: #718096;">Загрузка...</p>
+    </div>
+</div>
+
+<!-- Модальные окна (те же, что на главной) -->
+<div id="transactionModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('transactionModal')">&times;</span>
+        <h3 id="transactionModalTitle">Добавить транзакцию</h3>
+        <form id="transactionForm" onsubmit="addTransaction(event)">
+            <input type="hidden" id="transactionPlayerId" name="player_id">
+            <div class="form-group">
+                <label for="transactionType">Тип транзакции:</label>
+                <select id="transactionType" name="transaction_type" required>
+                    <option value="buyin">Бай-ин</option>
+                    <option value="win">Выигрыш</option>
+                    <option value="loss">Проигрыш</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="transactionAmount">Сумма:</label>
+                <input type="number" id="transactionAmount" name="amount" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="transactionGameDate">Дата игры:</label>
+                <input type="date" id="transactionGameDate" name="game_date">
+                <small style="color: #718096; font-size: 0.875rem;">Оставьте пустым для текущей даты</small>
+            </div>
+            <div class="form-group">
+                <label for="transactionDescription">Описание (необязательно):</label>
+                <input type="text" id="transactionDescription" name="description">
+            </div>
+            <button type="submit" class="btn btn-primary">Добавить</button>
+        </form>
+    </div>
+</div>
+
+<div id="rebuyModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('rebuyModal')">&times;</span>
+        <h3 id="rebuyModalTitle">Добавить докуп</h3>
+        <form id="rebuyForm" onsubmit="addRebuy(event)">
+            <input type="hidden" id="rebuyPlayerId" name="player_id">
+            <div class="form-group">
+                <label for="rebuyAmount">Сумма докупа:</label>
+                <input type="number" id="rebuyAmount" name="amount" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="rebuyGameDate">Дата игры:</label>
+                <input type="date" id="rebuyGameDate" name="game_date">
+                <small style="color: #718096; font-size: 0.875rem;">Оставьте пустым для текущей даты</small>
+            </div>
+            <div class="form-group">
+                <label for="rebuyDescription">Описание (необязательно):</label>
+                <input type="text" id="rebuyDescription" name="description">
+            </div>
+            <button type="submit" class="btn btn-primary">Добавить</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Создать график статистики
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('statsChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Бай-ин', 'Выигрыши', 'Проигрыши', 'Докупы'],
+                datasets: [{
+                    label: 'Суммы',
+                    data: [
+                        {{ stats.total_buyin }},
+                        {{ stats.total_wins }},
+                        {{ stats.total_losses }},
+                        {{ stats.total_rebuys }}
+                    ],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(255, 206, 86, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(255, 206, 86, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Загрузить транзакции и докупы
+        loadTransactions({{ player_id }});
+        loadRebuys({{ player_id }});
+    });
+    
+    async function loadTransactions(playerId) {
+        try {
+            const response = await fetch(`/api/players/${playerId}/transactions`);
+            const transactions = await response.json();
+            
+            const list = document.getElementById('transactions-list');
+            if (transactions.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: #718096;">Нет транзакций</p>';
+                return;
+            }
+            
+            let html = '<table class="data-table"><thead><tr><th>Дата</th><th>Тип</th><th>Сумма</th><th>Описание</th><th>Действия</th></tr></thead><tbody>';
+            transactions.forEach(trans => {
+                const typeNames = {'buyin': 'Бай-ин', 'win': 'Выигрыш', 'loss': 'Проигрыш'};
+                const typeColors = {'buyin': '#4299e1', 'win': '#48bb78', 'loss': '#f56565'};
+                const date = trans.game_date || trans.created_at.split(' ')[0];
+                html += `<tr>
+                    <td>${date}</td>
+                    <td><span style="color: ${typeColors[trans.transaction_type]}">${typeNames[trans.transaction_type]}</span></td>
+                    <td>${trans.amount.toFixed(2)}</td>
+                    <td>${trans.description || '-'}</td>
+                    <td><button class="btn btn-sm btn-danger" onclick="deleteTransaction(${trans.id})">Удалить</button></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            list.innerHTML = html;
+        } catch (error) {
+            document.getElementById('transactions-list').innerHTML = '<p style="text-align: center; color: #f56565;">Ошибка загрузки</p>';
+        }
+    }
+    
+    async function loadRebuys(playerId) {
+        try {
+            const response = await fetch(`/api/players/${playerId}/rebuys`);
+            const rebuys = await response.json();
+            
+            const list = document.getElementById('rebuys-list');
+            if (rebuys.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: #718096;">Нет докупов</p>';
+                return;
+            }
+            
+            let html = '<table class="data-table"><thead><tr><th>Дата</th><th>Сумма</th><th>Описание</th><th>Действия</th></tr></thead><tbody>';
+            rebuys.forEach(rebuy => {
+                const date = rebuy.game_date || rebuy.created_at.split(' ')[0];
+                html += `<tr>
+                    <td>${date}</td>
+                    <td>${rebuy.amount.toFixed(2)}</td>
+                    <td>${rebuy.description || '-'}</td>
+                    <td><button class="btn btn-sm btn-danger" onclick="deleteRebuy(${rebuy.id})">Удалить</button></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            list.innerHTML = html;
+        } catch (error) {
+            document.getElementById('rebuys-list').innerHTML = '<p style="text-align: center; color: #f56565;">Ошибка загрузки</p>';
+        }
+    }
+    
+    async function deleteTransaction(transactionId) {
+        if (!confirm('Вы уверены, что хотите удалить эту транзакцию?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/transactions/${transactionId}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            alert('Ошибка при удалении транзакции: ' + error.message);
+        }
+    }
+    
+    async function deleteRebuy(rebuyId) {
+        if (!confirm('Вы уверены, что хотите удалить этот докуп?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/rebuys/${rebuyId}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            alert('Ошибка при удалении докупа: ' + error.message);
+        }
+    }
+</script>
+{% endblock %}
+

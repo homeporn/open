@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Покер Трекер{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">🃏 Покер Трекер</h1>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('index') }}">Главная</a></li>
+                <li><a href="{{ url_for('sessions_list') }}">Игровые сессии</a></li>
+                <li><button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙 Темная</button></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Покер Трекер - Учет игроков и статистика</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+

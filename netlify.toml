@@ -1,0 +1,18 @@
+[build]
+  command = "npm install || true"
+  functions = "netlify/functions"
+  publish = "."
+
+[build.environment]
+  PYTHON_VERSION = "3.9"
+  NODE_VERSION = "18"
+
+[functions]
+  directory = "netlify/functions"
+  included_files = ["app.py", "poker_tracker.py", "requirements.txt", "templates/**", "static/**"]
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/server"
+  status = 200
+

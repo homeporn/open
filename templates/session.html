@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Сессия {{ stats.game_date }} - Покер Трекер{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h2>Игровая сессия: {{ stats.game_date }}</h2>
+    {% if stats.description %}
+    <p style="color: #718096; margin-top: 0.5rem;">{{ stats.description }}</p>
+    {% endif %}
+    <div class="header-actions">
+        <button class="btn btn-danger" onclick="deleteSession({{ stats.session_id }}, '{{ stats.game_date }}')">Удалить сессию</button>
+        <a href="{{ url_for('sessions_list') }}" class="btn btn-secondary">Назад к сессиям</a>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Игроков</h3>
+        <p class="stat-number">{{ stats.players_count }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Общий бай-ин</h3>
+        <p class="stat-number">{{ "%.2f"|format(stats.total_buyin) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Общие выигрыши</h3>
+        <p class="stat-number positive">{{ "%.2f"|format(stats.total_wins) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Общие проигрыши</h3>
+        <p class="stat-number negative">{{ "%.2f"|format(stats.total_losses) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Общие докупы</h3>
+        <p class="stat-number">{{ "%.2f"|format(stats.total_rebuys) }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Количество докупов</h3>
+        <p class="stat-number">{{ stats.rebuy_count }}</p>
+    </div>
+</div>
+
+<div class="players-section">
+    <h3>Игроки в сессии</h3>
+    <div class="players-grid">
+        {% for player in stats.players %}
+        <div class="player-card">
+            <div class="player-header">
+                <h4>{{ player.name }}</h4>
+                <span class="balance {% if player.balance >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ "%.2f"|format(player.balance) }}
+                </span>
+            </div>
+            <div class="player-stats" style="margin: 1rem 0; font-size: 0.9rem;">
+                <p><strong>Транзакции:</strong> {{ "%.2f"|format(player.transaction_balance) }}</p>
+                <p><strong>Докупы:</strong> {{ "%.2f"|format(player.rebuy_total) }}</p>
+            </div>
+            <div class="player-actions">
+                <a href="{{ url_for('player_detail', player_id=player.id) }}" class="btn btn-sm btn-info">Статистика игрока</a>
+            </div>
+        </div>
+        {% endfor %}
+        {% if stats.players|length == 0 %}
+        <div class="empty-state">
+            <p>В этой сессии нет игроков</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="chart-section">
+    <h3>Визуализация сессии</h3>
+    <canvas id="sessionChart"></canvas>
+</div>
+
+<script>
+    // Создать график статистики сессии
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('sessionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Бай-ин', 'Выигрыши', 'Проигрыши', 'Докупы'],
+                datasets: [{
+                    label: 'Суммы',
+                    data: [
+                        {{ stats.total_buyin }},
+                        {{ stats.total_wins }},
+                        {{ stats.total_losses }},
+                        {{ stats.total_rebuys }}
+                    ],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(255, 206, 86, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(255, 206, 86, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+    
+    async function deleteSession(sessionId, gameDate) {
+        if (!confirm(`Вы уверены, что хотите удалить сессию от ${gameDate}? Это удалит все транзакции и докупы этой сессии!`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/sessions/${sessionId}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(result.message);
+                window.location.href = '/sessions';
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            alert('Ошибка при удалении сессии: ' + error.message);
+        }
+    }
+</script>
+{% endblock %}
+

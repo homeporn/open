@@ -1,0 +1,2 @@
+# Netlify Function server package
+

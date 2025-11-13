@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Покер Трекер{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h2>Учет игроков в покер</h2>
+    <div class="header-actions">
+        <a href="{{ url_for('sessions_list') }}" class="btn btn-info">Игровые сессии</a>
+        <button class="btn btn-primary" onclick="showAddPlayerModal()">+ Добавить игрока</button>
+    </div>
+</div>
+
+<div class="stats-cards">
+    <div class="stat-card">
+        <h3>Всего игроков</h3>
+        <p class="stat-number" id="total-players">{{ players|length }}</p>
+    </div>
+    <div class="stat-card">
+        <h3>Общий баланс</h3>
+        <p class="stat-number" id="total-balance">0</p>
+    </div>
+</div>
+
+<div class="players-section">
+    <h3>Список игроков</h3>
+    <div id="players-list" class="players-grid">
+        {% for player in players %}
+        <div class="player-card">
+            <div class="player-header">
+                <h4>{{ player.name }}</h4>
+                <span class="balance {% if player.balance >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ "%.2f"|format(player.balance) }}
+                </span>
+            </div>
+            <div class="player-actions">
+                <a href="{{ url_for('player_detail', player_id=player.id) }}" class="btn btn-sm btn-info">Статистика</a>
+                <button class="btn btn-sm btn-success" onclick="showTransactionModal({{ player.id }}, '{{ player.name }}')">Транзакция</button>
+                <button class="btn btn-sm btn-danger" onclick="deletePlayer({{ player.id }}, '{{ player.name }}')">Удалить</button>
+            </div>
+        </div>
+        {% endfor %}
+        {% if players|length == 0 %}
+        <div class="empty-state">
+            <p>Нет игроков. Добавьте первого игрока!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Модальное окно добавления игрока -->
+<div id="addPlayerModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('addPlayerModal')">&times;</span>
+        <h3>Добавить игрока</h3>
+        <form id="addPlayerForm" onsubmit="addPlayer(event)">
+            <div class="form-group">
+                <label for="playerName">Имя игрока:</label>
+                <input type="text" id="playerName" name="name" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Добавить</button>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно транзакции -->
+<div id="transactionModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('transactionModal')">&times;</span>
+        <h3 id="transactionModalTitle">Добавить транзакцию</h3>
+        <form id="transactionForm" onsubmit="addTransaction(event)">
+            <input type="hidden" id="transactionPlayerId" name="player_id">
+            <div class="form-group">
+                <label for="transactionType">Тип транзакции:</label>
+                <select id="transactionType" name="transaction_type" required>
+                    <option value="buyin">Бай-ин</option>
+                    <option value="win">Выигрыш</option>
+                    <option value="loss">Проигрыш</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="transactionAmount">Сумма:</label>
+                <input type="number" id="transactionAmount" name="amount" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="transactionGameDate">Дата игры:</label>
+                <input type="date" id="transactionGameDate" name="game_date">
+                <small style="color: #718096; font-size: 0.875rem;">Оставьте пустым для текущей даты</small>
+            </div>
+            <div class="form-group">
+                <label for="transactionDescription">Описание (необязательно):</label>
+                <input type="text" id="transactionDescription" name="description">
+            </div>
+            <button type="submit" class="btn btn-primary">Добавить</button>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно докупа -->
+<div id="rebuyModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('rebuyModal')">&times;</span>
+        <h3 id="rebuyModalTitle">Добавить докуп</h3>
+        <form id="rebuyForm" onsubmit="addRebuy(event)">
+            <input type="hidden" id="rebuyPlayerId" name="player_id">
+            <div class="form-group">
+                <label for="rebuyAmount">Сумма докупа:</label>
+                <input type="number" id="rebuyAmount" name="amount" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="rebuyGameDate">Дата игры:</label>
+                <input type="date" id="rebuyGameDate" name="game_date">
+                <small style="color: #718096; font-size: 0.875rem;">Оставьте пустым для текущей даты</small>
+            </div>
+            <div class="form-group">
+                <label for="rebuyDescription">Описание (необязательно):</label>
+                <input type="text" id="rebuyDescription" name="description">
+            </div>
+            <button type="submit" class="btn btn-primary">Добавить</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Вычислить общий баланс при загрузке
+    document.addEventListener('DOMContentLoaded', function() {
+        let totalBalance = 0;
+        document.querySelectorAll('.balance').forEach(el => {
+            totalBalance += parseFloat(el.textContent);
+        });
+        document.getElementById('total-balance').textContent = totalBalance.toFixed(2);
+    });
+</script>
+{% endblock %}
+

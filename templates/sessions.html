@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Игровые сессии - Покер Трекер{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h2>Игровые сессии</h2>
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="showCreateSessionModal()">+ Создать сессию</button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Назад</a>
+    </div>
+</div>
+
+<div class="players-section">
+    <h3>Список игровых сессий</h3>
+    <div class="players-grid">
+        {% for session in sessions %}
+        <div class="player-card">
+            <div class="player-header">
+                <h4>{{ session.game_date }}</h4>
+                {% if session.description %}
+                <p style="color: #718096; font-size: 0.9rem; margin-top: 0.5rem;">{{ session.description }}</p>
+                {% endif %}
+            </div>
+            <div class="player-stats" style="margin: 1rem 0;">
+                <p><strong>Игроков:</strong> {{ session.players_count }}</p>
+                <p><strong>Бай-ин:</strong> {{ "%.2f"|format(session.total_buyin) }}</p>
+                <p><strong>Выигрыши:</strong> <span style="color: #48bb78;">{{ "%.2f"|format(session.total_wins) }}</span></p>
+                <p><strong>Проигрыши:</strong> <span style="color: #f56565;">{{ "%.2f"|format(session.total_losses) }}</span></p>
+            </div>
+            <div class="player-actions">
+                <a href="{{ url_for('session_detail', session_id=session.id) }}" class="btn btn-sm btn-info">Детали</a>
+                <button class="btn btn-sm btn-danger" onclick="deleteSession({{ session.id }}, '{{ session.game_date }}')">Удалить</button>
+            </div>
+        </div>
+        {% endfor %}
+        {% if sessions|length == 0 %}
+        <div class="empty-state">
+            <p>Нет игровых сессий. Создайте первую сессию!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Модальное окно создания сессии -->
+<div id="createSessionModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('createSessionModal')">&times;</span>
+        <h3>Создать игровую сессию</h3>
+        <form id="createSessionForm" onsubmit="createSession(event)">
+            <div class="form-group">
+                <label for="sessionGameDate">Дата игры:</label>
+                <input type="date" id="sessionGameDate" name="game_date" required>
+            </div>
+            <div class="form-group">
+                <label for="sessionDescription">Описание (необязательно):</label>
+                <input type="text" id="sessionDescription" name="description">
+            </div>
+            <button type="submit" class="btn btn-primary">Создать</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function showCreateSessionModal() {
+        document.getElementById('createSessionModal').style.display = 'block';
+        // Установить сегодняшнюю дату по умолчанию
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('sessionGameDate').value = today;
+    }
+
+    async function createSession(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        
+        const data = {
+            game_date: formData.get('game_date'),
+            description: formData.get('description') || ''
+        };
+
+        try {
+            const response = await fetch('/api/sessions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(result.message);
+                closeModal('createSessionModal');
+                location.reload();
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            alert('Ошибка при создании сессии: ' + error.message);
+        }
+    }
+    
+    async function deleteSession(sessionId, gameDate) {
+        if (!confirm(`Вы уверены, что хотите удалить сессию от ${gameDate}? Это удалит все транзакции и докупы этой сессии!`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/sessions/${sessionId}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            alert('Ошибка при удалении сессии: ' + error.message);
+        }
+    }
+</script>
+{% endblock %}
+
